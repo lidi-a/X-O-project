@@ -2,19 +2,33 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"math/rand"
+	"errors"
 	"net/http"
-	"strconv"
-	"sync"
 )
 
-var (
-	games = make(map[string]*Game)
-	mu    sync.RWMutex
-)
+type Handler struct {
+	cache CacheProvider
+}
 
-func handleMessage(w http.ResponseWriter, r *http.Request) {
+type CacheProvider interface {
+	HandleNewGame(userID string) OutgoingMessage
+	HandleListGames(userID string) OutgoingMessage
+}
+
+func NewHandler(cacheProvider CacheProvider) (*Handler, error) {
+
+	if cacheProvider == nil {
+		return nil, errors.New("missing cache provider")
+	}
+
+	h := &Handler{
+		cache: cacheProvider,
+	}
+
+	return h, nil
+}
+
+func (h *Handler) HandleMessage(w http.ResponseWriter, r *http.Request) {
 	var msg IncomingMessage
 	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
 		http.Error(w, "invalid data", http.StatusBadRequest)
@@ -25,16 +39,15 @@ func handleMessage(w http.ResponseWriter, r *http.Request) {
 	if msg.Text != nil {
 		switch *msg.Text {
 		case "/new":
-			response = handleNewGame(msg.UserID)
+			response = h.cache.HandleNewGame(msg.UserID)
 		case "/list":
-			response = handleListGames(msg.UserID)
+			response = h.cache.HandleListGames(msg.UserID)
 		default:
 			response = OutgoingMessage{
 				UserID: msg.UserID,
-				Text: "Неизвестная команда",
+				Text:   "Неизвестная команда",
 			}
 		}
-
 
 	} else {
 		// TODO
@@ -43,52 +56,3 @@ func handleMessage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
-
-func handleNewGame(userID string) OutgoingMessage {
-	mu.Lock()
-	defer mu.Unlock()
-
-	gameID := strconv.Itoa(rand.Intn(10000))
-
-	games[gameID] = &Game{
-		ID:      gameID,
-		PlayerX: userID,
-		Turn:    userID,
-	}
-
-	return OutgoingMessage{
-		UserID: userID,
-		Text:   fmt.Sprintf("Игра %s создана. Ожидаем второго игрока", gameID),
-	}
-}
-
-func handleListGames(userID string) OutgoingMessage {
-	mu.Lock()
-	defer mu.Unlock()
-
-	var buttons []Button
-
-	for id, game := range games {
-		if game.PlayerO == "" && !game.Finished {
-			buttons = append(buttons, Button{
-				Text:   "Присоединиться к игре",
-				Action: "Join" + id,
-			})
-		}
-	}
-
-	if len(buttons) == 0 {
-		return OutgoingMessage{
-			UserID: userID,
-			Text:   "Нет доступных игр",
-		}
-	}
-
-	return OutgoingMessage{
-		UserID:  userID,
-		Text:    "Выберете игру",
-		Buttons: buttons,
-	}
-}
-
-
