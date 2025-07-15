@@ -15,6 +15,7 @@ type CacheProvider interface {
 	CreateGame(userID string) OutgoingMessage
 	ListGames(userID string) OutgoingMessage
 	JoinGame(userID, gameID string) OutgoingMessage
+	Move(userID, coord string) OutgoingMessage
 }
 
 func NewHandler(cacheProvider CacheProvider) (*Handler, error) {
