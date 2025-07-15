@@ -1,22 +1,54 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"math/rand"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type InMemoryCache struct {
-	Games map[string]*Game
+	Games     map[string]*Game
 	UserGames map[string]string
 	sync.RWMutex
 }
 
 func NewInMemoryCache() *InMemoryCache {
 	return &InMemoryCache{
-		Games: make(map[string]*Game),
+		Games:     make(map[string]*Game),
 		UserGames: make(map[string]string),
+	}
+}
+
+func (i *InMemoryCache) cleanupLoop(ctx context.Context, cleanupInterval, ttl time.Duration) {
+
+	ticker := time.NewTicker(cleanupInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			i.Lock()
+			now := time.Now()
+			for id, game := range i.Games {
+				if now.Sub(game.UpdatedAt) > ttl {
+					delete(i.Games, id)
+					if game.PlayerX != "" {
+						delete(i.UserGames, game.PlayerX)
+					}
+					if game.PlayerO != "" {
+						delete(i.UserGames, game.PlayerO)
+					}
+					log.Println("Удалена неактивная игра:", id)
+				}
+			}
+			i.Unlock()
+
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 
@@ -30,6 +62,7 @@ func (i *InMemoryCache) CreateGame(userID string) OutgoingMessage {
 		ID:      gameID,
 		PlayerX: userID,
 		Turn:    userID,
+		UpdatedAt: time.Now(),
 	}
 	i.UserGames[userID] = gameID
 
@@ -82,6 +115,7 @@ func (i *InMemoryCache) JoinGame(userID, gameID string) OutgoingMessage {
 	}
 
 	game.PlayerO = userID
+	game.UpdatedAt = time.Now()
 	i.UserGames[userID] = gameID
 
 	text := "Игра началась! Ходит: " + game.Turn
@@ -122,6 +156,7 @@ func (i *InMemoryCache) Move(userID, coord string) OutgoingMessage {
 		mark = "O"
 	}
 	game.Board[x][y] = mark
+	game.UpdatedAt = time.Now()
 
 	if winner := checkWinner(game.Board); winner != "" {
 		game.Finished = true
