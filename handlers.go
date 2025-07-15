@@ -54,8 +54,14 @@ func (h *Handler) HandleMessage(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(action, "Join:") {
 			gameID := strings.TrimPrefix(action, "Join:")
 			response = h.cache.JoinGame(msg.UserID, gameID)
+		} else if strings.HasPrefix(action, "Move:"){
+			coord := strings.TrimPrefix(action, "Move:")
+			response = h.cache.Move(msg.UserID, coord)
 		} else {
-			// TODO
+			response = OutgoingMessage{
+				UserID: msg.UserID,
+				Text:   "Неизвестное действие",
+			}
 		}
 	}
 
