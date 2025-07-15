@@ -24,5 +24,6 @@ type Game struct {
 	Turn string
 	Winner string
 	Finished bool
+    Board    [3][3]string
 }
 

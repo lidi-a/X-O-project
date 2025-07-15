@@ -7,7 +7,7 @@ import (
 
 func main() {
 
-	cache := &InMemoryCache{Games: make(map[string]*Game)}
+	cache := NewInMemoryCache()
 
 	handler, err := NewHandler(cache)
 	if err != nil {

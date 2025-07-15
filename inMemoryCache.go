@@ -12,7 +12,13 @@ type InMemoryCache struct {
 	sync.RWMutex
 }
 
-func (i *InMemoryCache) HandleNewGame(userID string) OutgoingMessage {
+func NewInMemoryCache() *InMemoryCache {
+	return &InMemoryCache{
+		Games: make(map[string]*Game),
+	}
+}
+
+func (i *InMemoryCache) CreateGame(userID string) OutgoingMessage {
 	i.Lock()
 	defer i.Unlock()
 
@@ -30,7 +36,7 @@ func (i *InMemoryCache) HandleNewGame(userID string) OutgoingMessage {
 	}
 }
 
-func (i *InMemoryCache) HandleListGames(userID string) OutgoingMessage {
+func (i *InMemoryCache) ListGames(userID string) OutgoingMessage {
 	i.Lock()
 	defer i.Unlock()
 
@@ -57,4 +63,23 @@ func (i *InMemoryCache) HandleListGames(userID string) OutgoingMessage {
 		Text:    "Выберете игру",
 		Buttons: buttons,
 	}
+}
+
+func (i *InMemoryCache) JoinGame(userID, gameID string) OutgoingMessage {
+
+	i.Lock()
+	defer i.Unlock()
+
+	game, ok := i.Games[gameID]
+	if !ok || game.PlayerO != "" {
+		return OutgoingMessage{
+			UserID: userID,
+			Text:   "Игра недоступна",
+		}
+	}
+
+	game.PlayerO = userID
+
+	text := "Игра началась! Ходит: " + game.Turn
+	return renderBoard(game, text)
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 )
 
 type Handler struct {
@@ -11,20 +12,18 @@ type Handler struct {
 }
 
 type CacheProvider interface {
-	HandleNewGame(userID string) OutgoingMessage
-	HandleListGames(userID string) OutgoingMessage
+	CreateGame(userID string) OutgoingMessage
+	ListGames(userID string) OutgoingMessage
+	JoinGame(userID, gameID string) OutgoingMessage
 }
 
 func NewHandler(cacheProvider CacheProvider) (*Handler, error) {
-
 	if cacheProvider == nil {
 		return nil, errors.New("missing cache provider")
 	}
-
 	h := &Handler{
 		cache: cacheProvider,
 	}
-
 	return h, nil
 }
 
@@ -39,9 +38,9 @@ func (h *Handler) HandleMessage(w http.ResponseWriter, r *http.Request) {
 	if msg.Text != nil {
 		switch *msg.Text {
 		case "/new":
-			response = h.cache.HandleNewGame(msg.UserID)
+			response = h.cache.CreateGame(msg.UserID)
 		case "/list":
-			response = h.cache.HandleListGames(msg.UserID)
+			response = h.cache.ListGames(msg.UserID)
 		default:
 			response = OutgoingMessage{
 				UserID: msg.UserID,
@@ -49,8 +48,14 @@ func (h *Handler) HandleMessage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-	} else {
-		// TODO
+	} else if msg.Action != nil {
+		action := *msg.Action
+		if strings.HasPrefix(action, "Join:") {
+			gameID := strings.TrimPrefix(action, "Join:")
+			response = h.cache.JoinGame(msg.UserID, gameID)
+		} else {
+			// TODO
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
