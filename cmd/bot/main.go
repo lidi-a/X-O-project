@@ -12,9 +12,9 @@ import (
 
 func main() {
 
-	//cache := NewInMemoryCache()
-	//ctx := context.Background()
-	//go cache.cleanupLoop(ctx, time.Minute, 30*time.Minute) // Каждую минуту удаляем неактивные более 30 минут игры
+	// cache := internal.NewInMemoryCache()
+	// ctx := context.Background()
+	// go cache.CleanupLoop(ctx, time.Minute, 30*time.Minute) // Каждую минуту удаляем неактивные более 30 минут игры
 
 	if err := godotenv.Load(); err != nil {
 		log.Println(".env not found, relying on environment variables")
@@ -24,7 +24,6 @@ func main() {
 	if redisAddr == "" {
 		redisAddr = "localhost:6379"
 	}
-
 	cache := internal.NewRedisCache(redisAddr, os.Getenv("REDIS_PASS"), 0, 30*time.Minute, 3*time.Second)
 
 	handler, err := internal.NewHandler(cache)

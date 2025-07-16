@@ -30,7 +30,7 @@ func (s *InMemoryCache) GenerateGameID() string {
 	return fmt.Sprintf("game-%d", id)
 }
 
-func (i *InMemoryCache) cleanupLoop(ctx context.Context, cleanupInterval, ttl time.Duration) {
+func (i *InMemoryCache) CleanupLoop(ctx context.Context, cleanupInterval, ttl time.Duration) {
 
 	ticker := time.NewTicker(cleanupInterval)
 	defer ticker.Stop()
