@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -14,13 +14,20 @@ type InMemoryCache struct {
 	Games     map[string]*Game
 	UserGames map[string]string
 	sync.RWMutex
+	nextID uint64
 }
 
 func NewInMemoryCache() *InMemoryCache {
 	return &InMemoryCache{
 		Games:     make(map[string]*Game),
 		UserGames: make(map[string]string),
+		nextID:    1,
 	}
+}
+
+func (s *InMemoryCache) GenerateGameID() string {
+	id := atomic.AddUint64(&s.nextID, 1)
+	return fmt.Sprintf("game-%d", id)
 }
 
 func (i *InMemoryCache) cleanupLoop(ctx context.Context, cleanupInterval, ttl time.Duration) {
@@ -56,7 +63,7 @@ func (i *InMemoryCache) CreateGame(ctx context.Context, userID string) OutgoingM
 	i.Lock()
 	defer i.Unlock()
 
-	gameID := strconv.Itoa(rand.Intn(10000))
+	gameID := i.GenerateGameID()
 
 	i.Games[gameID] = &Game{
 		ID:        gameID,

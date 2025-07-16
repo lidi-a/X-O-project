@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
-	"strconv"
 	"time"
 
 	"github.com/bsm/redislock"
@@ -37,7 +37,17 @@ func NewRedisCache(addr, password string, db int, ttl, ttlLock time.Duration) *R
 
 func (r *RedisCache) CreateGame(ctx context.Context, userID string) OutgoingMessage {
 
-	gameID := strconv.Itoa(rand.Intn(10000))
+	id, err := r.client.Incr(ctx, "game:id:counter").Result()
+	if err != nil {
+		log.Printf("ошибка генерации game ID: %v", err)
+		return OutgoingMessage{
+			UserID: userID,
+			Text:   "Не удалось создать игру, попробуйте позже",
+		}
+	}
+
+	gameID := fmt.Sprintf("game-%d", id)
+
 	game := Game{
 		ID:      gameID,
 		PlayerX: userID,
