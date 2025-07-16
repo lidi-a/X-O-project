@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"context"
@@ -28,9 +28,9 @@ func NewRedisCache(addr, password string, db int, ttl, ttlLock time.Duration) *R
 	})
 
 	return &RedisCache{
-		client: client,
-		ttl:    ttl,
-		locker: redislock.New(client),
+		client:  client,
+		ttl:     ttl,
+		locker:  redislock.New(client),
 		ttlLock: ttlLock,
 	}
 }
@@ -194,7 +194,7 @@ func (r *RedisCache) Move(ctx context.Context, userID, coord string) OutgoingMes
 	return renderBoard(&game, "Ход противника")
 }
 
-func lockGame(ctx context.Context, locker  *redislock.Client, gameID string, ttl time.Duration) (*redislock.Lock, error) {
+func lockGame(ctx context.Context, locker *redislock.Client, gameID string, ttl time.Duration) (*redislock.Lock, error) {
 	lockKey := "lock:game:" + gameID
 	for i := 0; i < 3; i++ {
 		lock, err := locker.Obtain(ctx, lockKey, ttl, nil)
@@ -209,7 +209,7 @@ func lockGame(ctx context.Context, locker  *redislock.Client, gameID string, ttl
 	return nil, redislock.ErrNotObtained
 }
 
-func refreshUserGameTTL(ctx context.Context, client  *redis.Client, game Game, ttl time.Duration) {
+func refreshUserGameTTL(ctx context.Context, client *redis.Client, game Game, ttl time.Duration) {
 	if game.PlayerX != "" {
 		client.Expire(ctx, "usergame:"+game.PlayerX, ttl)
 	}

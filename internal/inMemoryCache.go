@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"context"
@@ -59,9 +59,9 @@ func (i *InMemoryCache) CreateGame(ctx context.Context, userID string) OutgoingM
 	gameID := strconv.Itoa(rand.Intn(10000))
 
 	i.Games[gameID] = &Game{
-		ID:      gameID,
-		PlayerX: userID,
-		Turn:    userID,
+		ID:        gameID,
+		PlayerX:   userID,
+		Turn:      userID,
 		UpdatedAt: time.Now(),
 	}
 	i.UserGames[userID] = gameID
