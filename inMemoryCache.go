@@ -52,7 +52,7 @@ func (i *InMemoryCache) cleanupLoop(ctx context.Context, cleanupInterval, ttl ti
 	}
 }
 
-func (i *InMemoryCache) CreateGame(userID string) OutgoingMessage {
+func (i *InMemoryCache) CreateGame(ctx context.Context, userID string) OutgoingMessage {
 	i.Lock()
 	defer i.Unlock()
 
@@ -72,7 +72,7 @@ func (i *InMemoryCache) CreateGame(userID string) OutgoingMessage {
 	}
 }
 
-func (i *InMemoryCache) ListGames(userID string) OutgoingMessage {
+func (i *InMemoryCache) ListGames(ctx context.Context, userID string) OutgoingMessage {
 	i.Lock()
 	defer i.Unlock()
 
@@ -81,7 +81,7 @@ func (i *InMemoryCache) ListGames(userID string) OutgoingMessage {
 	for id, game := range i.Games {
 		if game.PlayerO == "" && !game.Finished {
 			buttons = append(buttons, Button{
-				Text:   "Присоединиться к игре",
+				Text:   fmt.Sprintf("Присоединиться к %s", game.ID),
 				Action: "Join" + id,
 			})
 		}
@@ -101,7 +101,7 @@ func (i *InMemoryCache) ListGames(userID string) OutgoingMessage {
 	}
 }
 
-func (i *InMemoryCache) JoinGame(userID, gameID string) OutgoingMessage {
+func (i *InMemoryCache) JoinGame(ctx context.Context, userID, gameID string) OutgoingMessage {
 
 	i.Lock()
 	defer i.Unlock()
@@ -115,6 +115,11 @@ func (i *InMemoryCache) JoinGame(userID, gameID string) OutgoingMessage {
 	}
 
 	game.PlayerO = userID
+	if rand.Intn(2) == 0 {
+		game.Turn = game.PlayerX
+	} else {
+		game.Turn = game.PlayerO
+	}
 	game.UpdatedAt = time.Now()
 	i.UserGames[userID] = gameID
 
@@ -122,7 +127,7 @@ func (i *InMemoryCache) JoinGame(userID, gameID string) OutgoingMessage {
 	return renderBoard(game, text)
 }
 
-func (i *InMemoryCache) Move(userID, coord string) OutgoingMessage {
+func (i *InMemoryCache) Move(ctx context.Context, userID, coord string) OutgoingMessage {
 
 	i.Lock()
 	defer i.Unlock()
