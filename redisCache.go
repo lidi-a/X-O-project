@@ -46,7 +46,7 @@ func (r *RedisCache) CreateGame(ctx context.Context, userID string) OutgoingMess
 
 	data, _ := json.Marshal(game)
 	r.client.Set(ctx, "game:"+game.ID, data, r.ttl)
-	r.client.Set(ctx, "usergame:"+userID, gameID, 0)
+	r.client.Set(ctx, "usergame:"+userID, gameID, r.ttl)
 
 	return OutgoingMessage{
 		UserID: userID,
@@ -117,7 +117,9 @@ func (r *RedisCache) JoinGame(ctx context.Context, userID, gameID string) Outgoi
 
 	dataBytes, _ := json.Marshal(game)
 	r.client.Set(ctx, "game:"+game.ID, dataBytes, r.ttl)
-	r.client.Set(ctx, "usergame:"+userID, gameID, 0)
+	r.client.Set(ctx, "usergame:"+userID, gameID, r.ttl)
+	// продливаем ttl у оппонента
+	refreshUserGameTTL(ctx, r.client, game, r.ttl)
 
 	return renderBoard(&game, "Игра началась! Ходит: "+game.Turn)
 }
@@ -172,12 +174,14 @@ func (r *RedisCache) Move(ctx context.Context, userID, coord string) OutgoingMes
 		game.Winner = userID
 		dataBytes, _ := json.Marshal(game)
 		r.client.Set(ctx, "game:"+game.ID, dataBytes, r.ttl)
+		refreshUserGameTTL(ctx, r.client, game, r.ttl)
 		return renderBoard(&game, fmt.Sprintf("Победа: %s", mark))
 	}
 	if isDraw(game.Board) {
 		game.Finished = true
 		dataBytes, _ := json.Marshal(game)
 		r.client.Set(ctx, "game:"+game.ID, dataBytes, r.ttl)
+		refreshUserGameTTL(ctx, r.client, game, r.ttl)
 		return renderBoard(&game, "Ничья!")
 	}
 	game.Turn = game.PlayerX
@@ -186,6 +190,7 @@ func (r *RedisCache) Move(ctx context.Context, userID, coord string) OutgoingMes
 	}
 	dataBytes, _ := json.Marshal(game)
 	r.client.Set(ctx, "game:"+game.ID, dataBytes, r.ttl)
+	refreshUserGameTTL(ctx, r.client, game, r.ttl)
 	return renderBoard(&game, "Ход противника")
 }
 
@@ -202,4 +207,13 @@ func lockGame(ctx context.Context, locker  *redislock.Client, gameID string, ttl
 		time.Sleep(100 * time.Millisecond)
 	}
 	return nil, redislock.ErrNotObtained
+}
+
+func refreshUserGameTTL(ctx context.Context, client  *redis.Client, game Game, ttl time.Duration) {
+	if game.PlayerX != "" {
+		client.Expire(ctx, "usergame:"+game.PlayerX, ttl)
+	}
+	if game.PlayerO != "" {
+		client.Expire(ctx, "usergame:"+game.PlayerO, ttl)
+	}
 }
